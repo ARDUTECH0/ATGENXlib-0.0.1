@@ -184,4 +184,4 @@ PushButton PushButton(2);
 
 ## 📄 License
 
-See [LICENSE](https://claude.ai/chat/LICENSE) for details.
+See [LICENSE](https://github.com/ARDUTECH0/ATGENXlib-0.0.1/blob/main/LICENSE) for details.
