@@ -1,0 +1,84 @@
+#######################################
+# ATGENXlib - Keywords File
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+Runtime                KEYWORD1
+Module                 KEYWORD1
+ComponentBase          KEYWORD1
+DigitalInput           KEYWORD1
+DigitalOutput          KEYWORD1
+StateMachine           KEYWORD1
+EventBus               KEYWORD1
+Scheduler              KEYWORD1
+SerialLogSink          KEYWORD1
+
+LED                    KEYWORD1
+Relay1Ch               KEYWORD1
+ActiveBuzzer           KEYWORD1
+
+PushButton             KEYWORD1
+PIRMotion              KEYWORD1
+DHTSensor              KEYWORD1
+FlameDigital           KEYWORD1
+ReedSwitch             KEYWORD1
+IrObstacle             KEYWORD1
+SoundDigital           KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+attachLogger           KEYWORD2
+addModule              KEYWORD2
+begin                  KEYWORD2
+loopOnce               KEYWORD2
+
+on                     KEYWORD2
+off                    KEYWORD2
+toggle                 KEYWORD2
+setBrightness          KEYWORD2
+state                  KEYWORD2
+
+pressed                KEYWORD2
+released               KEYWORD2
+isPressed              KEYWORD2
+
+motion                 KEYWORD2
+motionStarted          KEYWORD2
+motionEnded            KEYWORD2
+
+temperatureC           KEYWORD2
+humidity               KEYWORD2
+
+detected               KEYWORD2
+started                KEYWORD2
+closed                 KEYWORD2
+
+triggered              KEYWORD2
+pulse                  KEYWORD2
+
+beep                   KEYWORD2
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+DhtType                LITERAL1
+DHT11                  LITERAL1
+DHT22                  LITERAL1
+
+InputMode              LITERAL1
+Normal                 LITERAL1
+Pullup                 LITERAL1
+
+Edge                   LITERAL1
+Rising                 LITERAL1
+Falling                LITERAL1
+
+BoardKind              LITERAL1
+Uno                    LITERAL1
+Esp32                  LITERAL1
