@@ -16,7 +16,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # (اختياري) تأكد إن version في library.properties مطابق للـ tag
       - name: Validate version matches tag
         shell: bash
         run: |
@@ -33,12 +32,28 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
-          ZIP_NAME="ATGENXlib-${GITHUB_REF_NAME}.zip"
-          # zip كل ملفات المكتبة (بدون .git و dist)
-          zip -r "dist/$ZIP_NAME" . -x ".git/*" -x "dist/*"
+          LIB_DIR="ATGENXlib"
+          ZIP_VER="ATGENXlib-${GITHUB_REF_NAME}.zip"
 
-          # zip باسم ثابت كمان (يسهّل التحميل في برنامجك)
-          cp "dist/$ZIP_NAME" "dist/ATGENXlib.zip"
+          # جهّز فولدر وسيط عشان zip يبقى فيه مجلد واحد
+          rm -rf ".release_tmp"
+          mkdir -p ".release_tmp/$LIB_DIR"
+
+          # انسخ كل حاجة (ما عدا اللي هنستثنيه)
+          rsync -av --delete \
+            --exclude=".git/" \
+            --exclude="dist/" \
+            --exclude=".github/" \
+            --exclude="node_modules/" \
+            --exclude=".DS_Store" \
+            --exclude="*.zip" \
+            ./ ".release_tmp/$LIB_DIR/"
+
+          # اعمل zip بالإصدار
+          (cd ".release_tmp" && zip -r "../dist/$ZIP_VER" "$LIB_DIR")
+
+          # zip ثابت
+          cp "dist/$ZIP_VER" "dist/ATGENXlib.zip"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
