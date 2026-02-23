@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "../base/ATG_DigitalInput.h"
+#include "../../core/ATG_Time.h"
 
 namespace atg {
 
@@ -9,12 +10,15 @@ public:
   using ClickCallback = void(*)(uint8_t clicks);
   using VoidCallback  = void(*)();
 
+  static constexpr uint8_t MAX_BINDINGS = 12;
+
+  // pullup افتراضي + debounce + window للضغطات + long press
   PushButton(
     uint8_t pin,
     bool pullup = true,
     uint16_t debounceMs = 35,
-    uint16_t multiClickWindowMs = 380,  // نافذة تجميع الضغطات
-    uint16_t longPressMs = 650          // زمن الضغط المطوّل
+    uint16_t multiClickWindowMs = 450,
+    uint16_t longPressMs = 650
   )
   : DigitalInput(pin, pullup ? InputMode::Pullup : InputMode::Normal, debounceMs),
     _multiWin(multiClickWindowMs),
@@ -22,99 +26,110 @@ public:
 
   const __FlashStringHelper* name() const override { return F("ATG_Button"); }
 
-  // لازم تتنادي في loop
-  void update() {
-    // DigitalInput غالبًا عنده update/tick في البايس
-    // لو اسمها tick() عندك بدّل السطر ده
-    DigitalInput::update();
+  // ✅ Runtime هو اللي هينادي tick() عبر rt.loopOnce()
+  void tick(Runtime& rt) override {
+    DigitalInput::tick(rt);
 
-    const uint32_t now = millis();
-
-    // --- Detect press/release edges ---
+    // Press edge
     if (pressed()) {
       _pressing = true;
-      _pressStart = now;
+      _pressStart = nowMs();
       _longFired = false;
       if (_onPress) _onPress();
     }
 
+    // Release edge
     if (released()) {
       _pressing = false;
 
-      // لو long press اتنفّذ خلاص، ما نحسبش click
+      // لو long اتنفّذ، ما نحسبش click
       if (!_longFired) {
         _clicks++;
-        _lastRelease = now;
+        _lastRelease = nowMs();
         _awaitFinalize = true;
       }
 
       if (_onRelease) _onRelease();
     }
 
-    // --- Long press ---
-    if (_pressing && !_longFired && (now - _pressStart >= _longMs)) {
+    // Long press
+    if (_pressing && !_longFired && elapsed(_pressStart, _longMs)) {
       _longFired = true;
       _awaitFinalize = false;
       _clicks = 0;
       if (_onLongPress) _onLongPress();
     }
 
-    // --- Finalize multi-click when window expires ---
-    if (_awaitFinalize && _clicks > 0 && (now - _lastRelease >= _multiWin)) {
+    // Finalize multi-click after window
+    if (_awaitFinalize && _clicks > 0 && elapsed(_lastRelease, _multiWin)) {
       const uint8_t c = _clicks;
       _clicks = 0;
       _awaitFinalize = false;
 
-      // callback عام حسب عدد الضغطات
       if (_onClicks) _onClicks(c);
 
-      // callbacks مخصوصة
-      if (c == 1 && _onSingle) _onSingle();
-      else if (c == 2 && _onDouble) _onDouble();
-      else if (c == 3 && _onTriple) _onTriple();
+      // ✅ Bind لأي رقم ضغطات (5/10/...)
+      for (uint8_t i = 0; i < _bindCount; i++) {
+        if (_bindClicks[i] == c && _bindFns[i]) {
+          _bindFns[i]();
+          break;
+        }
+      }
     }
   }
 
-  // pressed = Falling في حالة pullup
-  bool pressed() const { return (edge() == Edge::Falling); }
-  bool released() const { return (edge() == Edge::Rising); }
+  // pressed/released
+  bool pressed()  const { return edge() == Edge::Falling; } // pullup
+  bool released() const { return edge() == Edge::Rising;  }
   bool isPressed() const { return isLow(); }
 
-  // --- Setters للـ callbacks ---
-  void onClicks(ClickCallback cb) { _onClicks = cb; }
-  void onSingle(VoidCallback cb)  { _onSingle = cb; }
-  void onDouble(VoidCallback cb)  { _onDouble = cb; }
-  void onTriple(VoidCallback cb)  { _onTriple = cb; }
-  void onLongPress(VoidCallback cb){ _onLongPress = cb; }
-  void onPress(VoidCallback cb)   { _onPress = cb; }
-  void onRelease(VoidCallback cb) { _onRelease = cb; }
-
-  // تخصيص الإعدادات بعد الإنشاء
+  // إعدادات
   void setMultiClickWindow(uint16_t ms) { _multiWin = ms; }
   void setLongPressMs(uint16_t ms)      { _longMs = ms; }
 
+  // callbacks (اختياري)
+  void onClicks(ClickCallback cb) { _onClicks = cb; }
+  void onLongPress(VoidCallback cb) { _onLongPress = cb; }
+  void onPress(VoidCallback cb) { _onPress = cb; }
+  void onRelease(VoidCallback cb) { _onRelease = cb; }
+
+  // ✅ اربط “رقم الضغطات” بفنكشن
+  bool bind(uint8_t clicks, VoidCallback cb) {
+    if (!cb || clicks == 0) return false;
+
+    // update existing
+    for (uint8_t i = 0; i < _bindCount; i++) {
+      if (_bindClicks[i] == clicks) { _bindFns[i] = cb; return true; }
+    }
+
+    // add new
+    if (_bindCount >= MAX_BINDINGS) return false;
+    _bindClicks[_bindCount] = clicks;
+    _bindFns[_bindCount] = cb;
+    _bindCount++;
+    return true;
+  }
+
 private:
-  // timings
   uint16_t _multiWin;
   uint16_t _longMs;
 
-  // state
   bool _pressing = false;
   bool _longFired = false;
   bool _awaitFinalize = false;
 
-  uint8_t  _clicks = 0;
-  uint32_t _pressStart = 0;
-  uint32_t _lastRelease = 0;
+  uint8_t _clicks = 0;
+  ms_t _pressStart = 0;
+  ms_t _lastRelease = 0;
 
-  // callbacks
   ClickCallback _onClicks = nullptr;
-  VoidCallback _onSingle = nullptr;
-  VoidCallback _onDouble = nullptr;
-  VoidCallback _onTriple = nullptr;
   VoidCallback _onLongPress = nullptr;
   VoidCallback _onPress = nullptr;
   VoidCallback _onRelease = nullptr;
+
+  uint8_t _bindCount = 0;
+  uint8_t _bindClicks[MAX_BINDINGS] = {0};
+  VoidCallback _bindFns[MAX_BINDINGS] = {nullptr};
 };
 
 } // namespace atg
