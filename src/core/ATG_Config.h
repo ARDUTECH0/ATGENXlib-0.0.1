@@ -5,6 +5,13 @@
 // =========================
 
 // 0 = off, 1 = errors, 2 = info, 3 = debug
+
+#ifndef ATG_ENABLE_WIFI
+#define ATG_ENABLE_WIFI 0
+#endif
+#ifndef ATG_ENABLE_WIFI_PORTAL
+#define ATG_ENABLE_WIFI_PORTAL 0
+#endif
 #ifndef ATG_LOG_LEVEL
 #define ATG_LOG_LEVEL 2
 #endif
