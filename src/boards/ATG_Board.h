@@ -47,8 +47,17 @@ inline const __FlashStringHelper* boardName() {
 }
 
 constexpr bool isWiFiSupported() {
-  BoardKind b = detectBoard();
-  return (b == BoardKind::Esp32 || b == BoardKind::Esp8266);
-}
 
+#if defined(ESP32)
+  return true;
+
+#elif defined(ESP8266)
+  return true;
+
+#else
+  return false;
+
+#endif
+
+}
 } // namespace atg
