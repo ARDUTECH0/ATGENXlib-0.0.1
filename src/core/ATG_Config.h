@@ -9,6 +9,9 @@
 #ifndef ATG_ENABLE_WIFI
 #define ATG_ENABLE_WIFI 0
 #endif
+#ifndef ATG_SMARTHOME_ONLY
+#define ATG_SMARTHOME_ONLY 0
+#endif
 #ifndef ATG_ENABLE_WIFI_PORTAL
 #define ATG_ENABLE_WIFI_PORTAL 0
 #endif
