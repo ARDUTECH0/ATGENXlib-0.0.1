@@ -39,6 +39,7 @@ loopOnce               KEYWORD2
 
 on                     KEYWORD2
 off                    KEYWORD2
+onFor                    KEYWORD2
 toggle                 KEYWORD2
 setBrightness          KEYWORD2
 state                  KEYWORD2
