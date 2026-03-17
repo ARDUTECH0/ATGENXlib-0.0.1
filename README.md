@@ -96,6 +96,15 @@ ATGenX generates Arduino/ESP32 sketches in a **provisioning** style:
    * `dht.temperatureC()` / `dht.humidity()`
 
 ---
+## Star History
+
+<a href="https://www.star-history.com/?repos=ARDUTECH0%2FATGENXlib-0.0.1&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=ARDUTECH0/ATGENXlib-0.0.1&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=ARDUTECH0/ATGENXlib-0.0.1&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=ARDUTECH0/ATGENXlib-0.0.1&type=date&legend=top-left" />
+ </picture>
+</a>
 
 ## 📁 Library File Structure
 
