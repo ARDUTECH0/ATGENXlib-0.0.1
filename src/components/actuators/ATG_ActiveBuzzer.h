@@ -22,7 +22,8 @@ public:
   }
 
   void tick(Runtime& rt) override {
-    (void)rt;
+    // keep DigitalOutput's timers (onFor/offFor/pulse) working
+    DigitalOutput::tick(rt);
     if (!_running) return;
 
     if (_phase == 0) { // ON

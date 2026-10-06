@@ -25,8 +25,16 @@
 #include "components/sensors/ATG_ReedSwitch.h"
 #include "components/sensors/ATG_IrObstacle.h"
 #include "components/sensors/ATG_SoundDigital.h"
+#include "components/sensors/ATG_AnalogSensor.h"
+#include "components/sensors/ATG_DigitalSensor.h"
+#include "components/sensors/ATG_Ultrasonic.h"
+
+// Servo: include <components/actuators/ATG_ServoMotor.h> explicitly (pulls in Servo / ESP32Servo).
 
 // Actuators
 #include "components/actuators/ATG_LED.h"
 #include "components/actuators/ATG_Relay1Ch.h"
 #include "components/actuators/ATG_ActiveBuzzer.h"
+#include "components/actuators/ATG_DCMotor.h"
+#include "components/actuators/ATG_RGBLed.h"
+#include "components/actuators/ATG_StepperMotor.h"

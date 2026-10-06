@@ -1,3 +1,6 @@
+// ESP-only: needs ArduinoJson and is used by the WiFi/WebSocket stack.
+#if defined(ESP32) || defined(ESP8266)
+
 #pragma once
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -90,3 +93,5 @@ namespace atg
     };
 
 } // namespace atg
+
+#endif // defined(ESP32) || defined(ESP8266)

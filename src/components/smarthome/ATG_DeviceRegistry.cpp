@@ -1,3 +1,6 @@
+// ESP-only (see ATG_DeviceRegistry.h).
+#if defined(ESP32) || defined(ESP8266)
+
 #include "ATG_DeviceRegistry.h"
 
 namespace atg {
@@ -25,3 +28,5 @@ IDevice* DeviceRegistry::findById(const String& id) {
 }
 
 } // namespace atg
+
+#endif // defined(ESP32) || defined(ESP8266)

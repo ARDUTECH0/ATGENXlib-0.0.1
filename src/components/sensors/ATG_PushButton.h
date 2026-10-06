@@ -21,6 +21,7 @@ public:
     uint16_t longPressMs = 650
   )
   : DigitalInput(pin, pullup ? InputMode::Pullup : InputMode::Normal, debounceMs),
+    _activeLow(pullup),
     _multiWin(multiClickWindowMs),
     _longMs(longPressMs) {}
 
@@ -79,9 +80,11 @@ public:
   }
 
   // pressed/released
-  bool pressed()  const { return edge() == Edge::Falling; } // pullup
-  bool released() const { return edge() == Edge::Rising;  }
-  bool isPressed() const { return isLow(); }
+  // With pullup (default) the button pulls the pin LOW when pressed;
+  // without it (external pull-down, button to VCC) a press reads HIGH.
+  bool pressed()  const { return edge() == (_activeLow ? Edge::Falling : Edge::Rising); }
+  bool released() const { return edge() == (_activeLow ? Edge::Rising : Edge::Falling); }
+  bool isPressed() const { return _activeLow ? isLow() : isHigh(); }
 
   // إعدادات
   void setMultiClickWindow(uint16_t ms) { _multiWin = ms; }
@@ -111,6 +114,7 @@ public:
   }
 
 private:
+  bool _activeLow;
   uint16_t _multiWin;
   uint16_t _longMs;
 
