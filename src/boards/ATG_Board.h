@@ -9,7 +9,8 @@ enum class BoardKind : uint8_t {
   Nano,
   Mega,
   Esp32,
-  Esp8266
+  Esp8266,
+  Rp2040
 };
 
 inline BoardKind detectBoard() {
@@ -19,6 +20,9 @@ inline BoardKind detectBoard() {
 
 #elif defined(ESP8266)
   return BoardKind::Esp8266;
+
+#elif defined(ARDUINO_ARCH_RP2040)
+  return BoardKind::Rp2040;
 
 #elif defined(ARDUINO_AVR_MEGA2560)
   return BoardKind::Mega;
@@ -39,6 +43,7 @@ inline const __FlashStringHelper* boardName() {
   switch (detectBoard()) {
     case BoardKind::Esp32:   return F("ESP32");
     case BoardKind::Esp8266: return F("ESP8266");
+    case BoardKind::Rp2040:  return F("RP2040");
     case BoardKind::Mega:    return F("MEGA2560");
     case BoardKind::Uno:     return F("UNO");
     case BoardKind::Nano:    return F("NANO");
