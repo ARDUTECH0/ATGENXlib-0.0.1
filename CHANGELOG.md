@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.0
+
+### Added
+- **Raspberry Pi Pico (RP2040)**: board detection (`ATG_Board.h`), `architectures` now lists `rp2040`, and CI compiles every example for `rpipico`.
+- Every example still compiles on UNO and ESP32.
+
 ## 2.1.0
 
 ### Fixed
