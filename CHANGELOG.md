@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.3.0
+
+### Added
+- **Motion** (`#include <ATG_Motion.h>`, separate from `ATGENXlib.h` because the tilt sensor pulls in `Wire`):
+  - `StepperDriver` — a stepper on any STEP/DIR driver (A4988, DRV8825, TMC2208/2209, TB6600, DM542T…). Speeds up and slows down at a set rate, slows to a stop before changing direction, and lands a counted move on its last step. Never blocks `loop()`.
+  - `RobotBase` — two DC motors on one H-bridge (L298N, L293D, TB6612FNG), `drive(left, right)` from -255 to 255, and `update(run, throttle, steer)` for driving from an app.
+  - `LineSensor` and `LineFollower` — up to five infrared eyes, the line's position from -100 to 100, and PID that follows it.
+  - `TiltSensor` and `Balancer` — the MPU6050 as a tilt meter (gyro zeroed at power-on, complementary filter) and PID that keeps a two-wheeled robot standing.
+  - Four examples: `Motion_StepperDriver`, `Motion_RobotCar`, `Motion_LineFollower`, `Motion_BalancingRobot`.
+- These are the parts the ATGenX visual builder writes for steppers and robots. Each was tested as compiled firmware on a simulated ATmega328P against a model of the machine: a counted turn lands on step 3200 of 3200, the line follower holds the track, the balancing robot stands and recovers from a shove.
+
 ## 2.2.0
 
 ### Added

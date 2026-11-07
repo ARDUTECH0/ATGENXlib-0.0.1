@@ -154,6 +154,31 @@ void loop() {
 
 All inputs are debounced and report edges; all outputs handle active-LOW wiring for you, so `on()` always means *on*.
 
+### Motion
+
+`#include <ATG_Motion.h>` (kept out of `ATGENXlib.h`: the tilt sensor pulls in `Wire`). These don't use the `Runtime`: call `update()` on every pass of `loop()`.
+
+| Class | Constructor | Use |
+|---|---|---|
+| `StepperDriver` | `(stepPin, dirPin, enPin = ATG_NO_PIN, pulseUs = 5)` | `begin(stepsPerTurn, topRpm, accelRpm)` · `update(run, forward, speedPercent, turns)` (turns 0 = keep turning) · `speed()` `stepsLeft()` `moving()` |
+| `RobotBase` | `(ena, in1, in2, in3, in4, enb)` | `begin()` · `drive(left, right)` (-255 … 255) · `stop()` · `update(run, throttle, steer)` (-100 … 100, from an app) |
+| `LineSensor` | `(s1, s2 … s5)` — left to right, up to five | `begin()` · `read()` · `position()` (-100 … 100) · `lost()` · `lightLine()` |
+| `LineFollower` | `(RobotBase&, LineSensor&)` | `update(run, speedPercent, kp, kd)` |
+| `TiltSensor` | `(blend = 0.999, address = 0x68)` | `begin()` (keep it still: it zeroes the gyro) · `update()` · `angle()` · `rate()` |
+| `Balancer` | `(RobotBase&, TiltSensor&)` | `begin(level = 0, minPower = 30, hold = 15)` · `update(run, throttle, steer, kp, ki, kd)` · `power()` |
+
+```cpp
+#include <ATG_Motion.h>
+using namespace atg;
+
+RobotBase car(9, 8, 7, 4, 2, 10);   // ENA, IN1, IN2, IN3, IN4, ENB
+TiltSensor tilt;
+Balancer balance(car, tilt);
+
+void setup() { car.begin(); tilt.begin(); balance.begin(); }
+void loop()  { tilt.update(); balance.update(true, 0, 0, 25, 0.4, 0.8); }
+```
+
 ### Naming
 
 Never name a variable after its class — `LED LED(13);` does not compile. Use `LED led(13);`.

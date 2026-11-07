@@ -19,6 +19,12 @@ SerialLogSink	KEYWORD1
 LED	KEYWORD1
 Relay1Ch	KEYWORD1
 ActiveBuzzer	KEYWORD1
+StepperDriver	KEYWORD1
+RobotBase	KEYWORD1
+LineSensor	KEYWORD1
+LineFollower	KEYWORD1
+TiltSensor	KEYWORD1
+Balancer	KEYWORD1
 
 PushButton	KEYWORD1
 PIRMotion	KEYWORD1
@@ -36,6 +42,17 @@ attachLogger	KEYWORD2
 addModule	KEYWORD2
 begin	KEYWORD2
 loopOnce	KEYWORD2
+update	KEYWORD2
+drive	KEYWORD2
+stop	KEYWORD2
+read	KEYWORD2
+position	KEYWORD2
+lost	KEYWORD2
+lightLine	KEYWORD2
+angle	KEYWORD2
+rate	KEYWORD2
+stepsLeft	KEYWORD2
+moving	KEYWORD2
 
 on	KEYWORD2
 off	KEYWORD2
