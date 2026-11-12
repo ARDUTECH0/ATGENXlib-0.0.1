@@ -1,10 +1,34 @@
 #pragma once
 #include <Arduino.h>
 
+// FastAccelStepper drives the STEP pin from the chip's own timers (ESP32: RMT/MCPWM; AVR: Timer1 on pins 9 and 10),
+// so the speed is steady and high whatever loop() is doing. It's used when the library is installed, unless the
+// sketch says ATG_NO_FAST_STEPPER (the ATGenX simulation does: it watches each step on the pin). A pin it can't drive
+// (an UNO's STEP not on 9 or 10) falls back to stepping from loop(), as before.
+#if !defined(ATG_NO_FAST_STEPPER) && defined(__has_include)
+#if __has_include(<FastAccelStepper.h>)
+#include <FastAccelStepper.h>
+#define ATG_FAST_STEPPER 1
+#endif
+#endif
+
 namespace atg {
 
 #ifndef ATG_NO_PIN
 #define ATG_NO_PIN 255
+#endif
+
+#if ATG_FAST_STEPPER
+/** One engine for every stepper in the sketch (FastAccelStepper wants a single one). */
+inline FastAccelStepperEngine& atgStepperEngine() {
+  static FastAccelStepperEngine engine;
+  static bool ready = false;
+  if (!ready) {
+    engine.init();
+    ready = true;
+  }
+  return engine;
+}
 #endif
 
 /**
@@ -17,6 +41,7 @@ namespace atg {
  *   motor.update(true, true, 100, 2);   // every pass of loop(): run, forward, speed %, turns (0 = keep turning)
  *
  * EN HIGH leaves the motor free on every driver here; it's held only while it moves.
+ * With FastAccelStepper installed the pulses come from a hardware timer (usesTimer() says so).
  */
 class StepperDriver {
 public:
@@ -29,6 +54,19 @@ public:
     _top = max(1.0f, topRpm) * _perTurn / 60.0f;
     _ramp = max(1.0f, accelRpm) * _perTurn / 60.0f;
     _creep = max(20.0f, _ramp * 0.02f);
+#if ATG_FAST_STEPPER
+    _fas = atgStepperEngine().stepperConnectToPin(_step);
+    if (_fas) {
+      _fas->setDirectionPin(_dir);
+      if (_en != ATG_NO_PIN) {
+        // EN low = held (every driver here); released between moves
+        _fas->setEnablePin(_en, true);
+        _fas->setAutoEnable(true);
+      }
+      _fas->setAcceleration((int32_t)max(1.0f, _ramp));
+      return;
+    }
+#endif
     pinMode(_step, OUTPUT);
     pinMode(_dir, OUTPUT);
     digitalWrite(_dir, HIGH);
@@ -44,6 +82,12 @@ public:
    * `run` back on. 0 keeps it turning.
    */
   void update(bool run, bool forward, float speedPercent, float turns) {
+#if ATG_FAST_STEPPER
+    if (_fas) {
+      updateTimer(run, forward, speedPercent, turns);
+      return;
+    }
+#endif
     const uint32_t now = micros();
     // the sums run 500 times a second, so the loop itself stays quick enough to pulse on time
     if (now - _tRamp >= 2000) {
@@ -83,12 +127,86 @@ public:
   }
 
   /** Steps a second right now. */
-  float speed() const { return _sps; }
+  float speed() const {
+#if ATG_FAST_STEPPER
+    if (_fas) return fabsf(_fas->getCurrentSpeedInMilliHz() / 1000.0f);
+#endif
+    return _sps;
+  }
   /** Steps left in a counted move. */
-  long stepsLeft() const { return _left; }
-  bool moving() const { return _sps >= 1; }
+  long stepsLeft() const {
+#if ATG_FAST_STEPPER
+    if (_fas) return _counted ? labs(_fas->targetPos() - _fas->getCurrentPosition()) : 0;
+#endif
+    return _left;
+  }
+  bool moving() const {
+#if ATG_FAST_STEPPER
+    if (_fas) return _fas->isRunning();
+#endif
+    return _sps >= 1;
+  }
+  /** The pulses come from a hardware timer (FastAccelStepper), not from loop(). */
+  bool usesTimer() const {
+#if ATG_FAST_STEPPER
+    return _fas != nullptr;
+#else
+    return false;
+#endif
+  }
 
 private:
+#if ATG_FAST_STEPPER
+  /** The same behaviour on the timer: the library ramps, counts and stops; this tells it what's wanted when it changes. */
+  void updateTimer(bool run, bool forward, float speedPercent, float turns) {
+    const uint32_t now = millis();
+    if (now - _tRamp < 2) return;
+    _tRamp = now;
+    const bool counted = turns > 0;
+    const bool restart = turns != _turnsSeen || (run && !_wasOn);
+    _turnsSeen = turns;
+    _wasOn = run;
+    const uint32_t hz = (uint32_t)max(1.0f, _top * constrain(speedPercent, 0.0f, 100.0f) / 100.0f);
+    if (!run || speedPercent <= 0) {
+      if (_fas->isRunning()) _fas->stopMove();
+      _running = false;
+      return;
+    }
+    // a change of direction waits for the motor to slow to a stop (it never loses its place)
+    if (_running && forward != _fwd) {
+      if (_fas->isRunning()) {
+        _fas->stopMove();
+        return;
+      }
+      _running = false;
+    }
+    if (hz != _hz) {
+      _hz = hz;
+      _fas->setSpeedInHz(hz);
+      if (_running) _fas->applySpeedAcceleration();
+    }
+    if (counted) {
+      _counted = true;
+      if (restart) {
+        _fwd = forward;
+        _fas->move((forward ? 1 : -1) * lroundf(turns * _perTurn));
+        _running = true;
+      }
+      return;
+    }
+    _counted = false;
+    if (!_running || restart) {
+      _fwd = forward;
+      if (forward) _fas->runForward();
+      else _fas->runBackward();
+      _running = true;
+    }
+  }
+
+  FastAccelStepper* _fas = nullptr;
+  uint32_t _hz = 0;
+  bool _running = false, _counted = false;
+#endif
   uint8_t _step, _dir, _en, _pulseUs;
   float _perTurn = 200, _top = 200, _ramp = 400, _creep = 20;
   float _sps = 0;

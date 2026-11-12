@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4.0
+
+### Changed
+- `StepperDriver` runs on **FastAccelStepper** when the sketch includes `<FastAccelStepper.h>` before `<ATG_Motion.h>`: the STEP pulses come from the chip's own timers (ESP32: any pin; UNO/Nano: pins 9 and 10; Mega: 6, 7 and 8), so the speed is steady and high whatever `loop()` is doing. Same API (`begin`, `update`, `speed`, `stepsLeft`, `moving`); `usesTimer()` tells which way it runs.
+- A pin FastAccelStepper can't drive, a sketch without it, or `#define ATG_NO_FAST_STEPPER` (the ATGenX simulation, which watches each step) keeps stepping from `loop()` as before.
+- On AVR, FastAccelStepper takes Timer1, which the Servo library needs too: a sketch with a servo should define `ATG_NO_FAST_STEPPER`.
+
 ## 2.3.0
 
 ### Added
