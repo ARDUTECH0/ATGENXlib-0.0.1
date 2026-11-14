@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.5.0
+
+### Added
+- **Phone** (`#include <ATG_Phone.h>`, after `<TinyGsmClient.h>`): text messages and calls from a SIM board (LILYGO T-A7670X, T-SIM7600X, T-SIM7670G-S3, TTGO T-Call).
+  - `ATG_Phone` sends one at a time from a queue, tries a refused message again (3 tries, 20 s apart), waits for the network when there's none (up to 10 minutes), rings each call 30 s, and sends Arabic messages (70 letters each; a longer text goes as several).
+  - `onBusy(pause, resume)` pauses the board's internet around them: on these modems a message sent in the middle of the cloud connection drops it, and a call on a network without 4G voice moves the modem to 2G. `begin()` also asks for calls over 4G (`AT+CEVDP=3`) and keeps new messages off the serial line.
+  - Messages are sent by `ATG_Phone` itself, not TinyGSM's `sendSMS_UTF16`: that one asks for `AT+CSCS="HEX"`, which only the SIM800 has — on the A76xx and SIM76xx an Arabic message never went — and it left the coding at UCS-2, so the next Latin message went garbled. Arabic now goes in UCS2 mode (the number too), Latin in the GSM alphabet, and the modem is put back after each one. A refused message prints the network's `+CMS ERROR`.
+  - `answer(numbers…, status)`: a message saying "STATUS", "حالة" or "?" from one of the board's numbers gets the readings back — sent to the number stored on the board, never to the one the message shows (a sender's number can be faked), one answer a minute at most. Messages from other numbers are deleted.
+  - `ATG_PhoneAlert` is the alert a rule switches: a message, a call or both to up to three numbers, once each time it's switched on and not again before its gap, the reading at the end of the message.
+  - `#define ATG_PHONE_NO_CALLS` for a modem without voice (SIM7080G).
+- **Logic** (`#include <ATG_Logic.h>`): the parts the rules on the board read and switch — `ATG_In` (debounced), `ATG_Out`, `ATG_Sonar`, `ATG_DhtReader` — and `atgxScale`, `atgxPercent`, `atgxNum`. The ATGenX Builder's sketches used to carry these inline.
+- Example `Phone_Alerts`.
+
 ## 2.4.0
 
 ### Changed
