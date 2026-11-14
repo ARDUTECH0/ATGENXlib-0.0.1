@@ -1,6 +1,7 @@
 /*
- * Phone_Alerts — a LILYGO T-A7670X that texts and rings you when the room gets too hot, and answers
- * "STATUS" (or "حالة") with the temperature. No internet: the SIM needs credit for messages and calls only.
+ * Phone_Alerts — a LILYGO T-A7670X that texts and rings you when the room gets too hot, answers
+ * "STATUS" (or "حالة") with every reading, and "temp" (or "حرارة") with the temperature alone.
+ * No internet: the SIM needs credit for messages and calls only.
  *
  * Needs an ESP32 SIM board and LILYGO's TinyGSM (the one with TINY_GSM_MODEM_A7670):
  * https://atgenx.com/downloads/TinyGSM-LILYGO.zip — and the DHT sensor library.
@@ -30,6 +31,11 @@ String status() {
   return s;
 }
 
+// a word of your own: "temp" or "حرارة" (also "الحرارة كام؟") gets the temperature alone
+String temperature() {
+  return String(F("Temperature: ")) + atgxNum(room.temperatureC(), 1, "C");
+}
+
 void setup() {
   Serial.begin(115200);
   // the T-A7670X's power-up sequence (LILYGO's)
@@ -49,6 +55,8 @@ void setup() {
 
   phone.begin();
   phone.answer("+201012345678", "+201198765432", "", status);
+  phone.reply("temp", temperature);
+  phone.reply("حرارة", temperature);
   room.begin();
 }
 

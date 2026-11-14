@@ -10,7 +10,10 @@
  *    the data anyway. So: the cloud is closed, the messages and calls go, the cloud comes back by itself.
  *  - Calls ring 30 s each, one number after the other, while loop() keeps running.
  *  - Arabic messages (70 letters a message; a longer text goes as several).
- *  - The board answers a message: "STATUS", "حالة" or "?" from one of its own numbers gets the readings back.
+ *  - The board answers a message: "STATUS", "حالة" or "?" from one of its own numbers gets the readings back,
+ *    and words of your own get what you choose: phone.reply("حرارة", temperatureText) — "حرارة" gets the
+ *    temperature. Arabic is matched loosely (ال, ة/ه, أ/إ/آ, ى/ي, ?), English in any case, inside a longer
+ *    message too ("الحرارة كام؟").
  *  - With no internet at all (messages and calls only) it works the same: onBusy is simply not set.
  *
  * Include it after TinyGsmClient.h, the modem chosen first:
@@ -102,6 +105,11 @@ class ATG_Phone {
   static constexpr uint32_t RING_MS = 30000UL;
   /** how long a message waits for the network before it is given up (the SIM out of coverage) */
   static constexpr uint32_t NETWORK_WAIT_MS = 10UL * 60000UL;
+  /** how many words of your own the board answers (reply()) */
+  static constexpr uint8_t WORDS = 8;
+
+  /** What writes an answer: the text the board sends back. */
+  typedef String (*Answer)();
 
   explicit ATG_Phone(TinyGsm& modem) : _m(modem) {}
 
@@ -132,12 +140,27 @@ class ATG_Phone {
     _ready = true;
   }
 
-  /** Answer "STATUS" / "حالة" / "?" from these numbers with what status() writes (the readings). */
-  void answer(const char* a, const char* b, const char* c, String (*status)()) {
+  /**
+   * The numbers the board takes questions from, and the answer to "STATUS" / "حالة" / "?" (what status() writes:
+   * the readings). status may be nullptr: then only the words given to reply() are answered.
+   */
+  void answer(const char* a, const char* b, const char* c, Answer status) {
     _allowed[0] = a;
     _allowed[1] = b;
     _allowed[2] = c;
     _status = status;
+  }
+
+  /**
+   * A word of your own and its answer: phone.reply("حرارة", temperatureText). A message with that word, from one
+   * of the numbers given to answer(), gets what fn() writes. Up to 8 words; false when they're full.
+   */
+  bool reply(const char* word, Answer fn) {
+    if (!word || !*word || !fn || _nWords >= WORDS) return false;
+    _words[_nWords] = word;
+    _replies[_nWords] = fn;
+    ++_nWords;
+    return true;
   }
 
   /** Queue a text message (split in several when it's long); false when the queue is full. */
@@ -197,7 +220,7 @@ class ATG_Phone {
         if (_pause) Serial.println(F("[SIM] Messages and calls done — internet back"));
         if (_resume) _resume();
       }
-      if (_status && now - _inboxAt >= (_pause ? 60000UL : 15000UL)) {
+      if ((_status || _nWords) && now - _inboxAt >= (_pause ? 60000UL : 15000UL)) {
         _inboxAt = now;
         readInbox();
       }
@@ -273,11 +296,17 @@ class ATG_Phone {
   Job _q[QUEUE];
   uint8_t _head = 0, _count = 0;
   bool _ready = false, _paused = false, _ringing = false;
-  uint32_t _ringAt = 0, _inboxAt = 0, _answeredAt = 0;
+  uint32_t _ringAt = 0, _inboxAt = 0;
+  /** when the last three answers went (a ring): three in three minutes at most */
+  uint32_t _answers[3] = {0, 0, 0};
+  uint8_t _answerAt = 0;
   void (*_pause)() = nullptr;
   void (*_resume)() = nullptr;
   const char* _allowed[3] = {"", "", ""};
-  String (*_status)() = nullptr;
+  Answer _status = nullptr;
+  const char* _words[WORDS] = {};
+  Answer _replies[WORDS] = {};
+  uint8_t _nWords = 0;
 
   bool push(uint8_t kind, const char* to, const String& text, ATG_PhoneAlert* from) {
     if (_count >= QUEUE) {
@@ -431,14 +460,84 @@ class ATG_Phone {
     return nullptr;
   }
 
-  /** "STATUS", "status", "?", "حالة", "الحالة", "حاله" */
-  static bool asksStatus(String t) {
+  /** "STATUS", "status", "?", "؟", "حالة", "الحالة", "حاله", "حالة؟" */
+  static bool asksStatus(const String& body) {
+    String t = body;
     t.trim();
-    t.toLowerCase();
-    if (t == "status" || t == "stat" || t == "?" || t == "s") return true;
-    if (t == "\xD8\x9F") return true;  // ؟
-    if (t.startsWith("\xD8\xA7\xD9\x84")) t = t.substring(4);  // ال
-    return t == "\xD8\xAD\xD8\xA7\xD9\x84\xD8\xA9" || t == "\xD8\xAD\xD8\xA7\xD9\x84\xD9\x87";  // حالة / حاله
+    if (t == "?" || t == "\xD8\x9F") return true;  // ? ؟
+    t = loose(t);
+    return t == "status" || t == "stat" || t == "s" || t == "\xD8\xAD\xD8\xA7\xD9\x84\xD9\x87";  // حاله
+  }
+
+  /**
+   * A message as words to compare: English in small letters, Arabic with its letter forms made one (أ إ آ → ا,
+   * ة → ه, ى → ي, no short vowels or tatweel) and "ال" off the front of each word, punctuation as spaces, one space
+   * between words. "الحرارة كام؟" → "حراره كام".
+   */
+  static String loose(const String& in) {
+    String s;
+    s.reserve(in.length());
+    const uint8_t* p = (const uint8_t*)in.c_str();
+    while (*p) {
+      const uint8_t c = p[0];
+      if ((c == 0xD8 || c == 0xD9) && p[1]) {
+        uint16_t u = ((c & 0x1F) << 6) | (p[1] & 0x3F);
+        p += 2;
+        if (u == 0x0623 || u == 0x0625 || u == 0x0622) u = 0x0627;           // أ إ آ → ا
+        else if (u == 0x0629) u = 0x0647;                                     // ة → ه
+        else if (u == 0x0649) u = 0x064A;                                     // ى → ي
+        else if (u == 0x0640 || (u >= 0x064B && u <= 0x0652)) continue;       // tatweel, short vowels
+        else if (u == 0x061F || u == 0x060C || u == 0x061B) u = ' ';          // ؟ ، ؛
+        if (u == ' ') s += ' ';
+        else {
+          s += (char)(0xC0 | (u >> 6));
+          s += (char)(0x80 | (u & 0x3F));
+        }
+      } else if (c < 0x80) {
+        s += isAlphaNumeric(c) ? (char)tolower(c) : ' ';
+        ++p;
+      } else {
+        s += (char)c;  // other letters, byte by byte as they are
+        ++p;
+      }
+    }
+    String out;
+    const int n = s.length();
+    int i = 0;
+    while (i < n) {
+      while (i < n && s[i] == ' ') ++i;
+      int j = i;
+      while (j < n && s[j] != ' ') ++j;
+      if (j > i) {
+        String w = s.substring(i, j);
+        // "ال" and at least two letters after it
+        if (w.length() >= 8 && w.startsWith("\xD8\xA7\xD9\x84")) w = w.substring(4);
+        if (out.length()) out += ' ';
+        out += w;
+      }
+      i = j;
+    }
+    return out;
+  }
+
+  /** The answer a message asks for: a word of yours (on its own or among others), else the status; or none. */
+  Answer answerFor(const String& body) const {
+    const String b = String(' ') + loose(body) + ' ';
+    for (uint8_t i = 0; i < _nWords; ++i) {
+      const String w = loose(String(_words[i]));
+      if (w.length() && b.indexOf(String(' ') + w + ' ') >= 0) return _replies[i];
+    }
+    return _status && asksStatus(body) ? _status : nullptr;
+  }
+
+  /** Three answers in three minutes at most: a flood of questions can't spend the SIM's credit. */
+  bool mayAnswer() {
+    const uint32_t now = millis();
+    uint32_t& oldest = _answers[_answerAt];
+    if (oldest && now - oldest < 180000UL) return false;
+    oldest = now | 1;
+    _answerAt = (_answerAt + 1) % 3;
+    return true;
   }
 
   /** "0030003100320033" (UCS-2 in hex, as the modem lists messages in UCS2 mode) → UTF-8 */
@@ -477,7 +576,7 @@ class ATG_Phone {
   }
 
   /**
-   * Reads the messages on the SIM. A question from one of the board's numbers gets the readings; every message
+   * Reads the messages on the SIM. A question from one of the board's numbers gets its answer; every message
    * read is deleted (the SIM holds only a few dozen). One that couldn't be read whole stays for the next time.
    */
   void readInbox() {
@@ -519,16 +618,15 @@ class ATG_Phone {
       Serial.print(from);
       Serial.print(F(": "));
       Serial.println(body);
-      if (!asksStatus(body) || !_status) continue;
+      const Answer fn = answerFor(body);
+      if (!fn) continue;
       // a sender's number can be faked: the answer goes to the number stored on the board, never to the one
-      // the message shows — a faked question reaches its real owner, not whoever faked it. And one answer a
-      // minute at most, so a flood of questions can't spend the SIM's credit.
-      if (_answeredAt && millis() - _answeredAt < 60000UL) {
-        Serial.println(F("[SIM] Answered less than a minute ago — this one waits for the next question"));
+      // the message shows — a faked question reaches its real owner, not whoever faked it
+      if (!mayAnswer()) {
+        Serial.println(F("[SIM] Three answers in the last three minutes — this question is skipped"));
         continue;
       }
-      _answeredAt = millis() | 1;
-      sms(owner, _status());
+      sms(owner, fn());
     }
   }
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.6.0
+
+### Added
+- **Phone**: `reply(word, answer)` — words of your own and what the board sends back: `phone.reply("حرارة", temperature)` answers "حرارة" with the temperature alone. Up to 8 words. Arabic is matched loosely (ال, ة/ه, أ/إ/آ, ى/ي, short vowels, ؟), English in any case, and a word inside a longer message counts ("الحرارة كام؟"). Only messages from the numbers given to `answer()` are answered, and the answer goes to that stored number.
+- `answer(numbers…, nullptr)`: take questions for `reply()` words only, without the "STATUS" answer.
+
+### Changed
+- Three answers in any three minutes (was: one a minute), so a second question right after the first is answered too; still bounded, so a flood can't spend the SIM's credit.
+- "حالة؟" and "STATUS!" count as the status question (punctuation and letter forms no longer matter).
+
 ## 2.5.0
 
 ### Added
